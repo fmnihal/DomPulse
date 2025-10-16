@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DomPulse: DOM Health</title>
+    <style>
+        body { font-family: sans-serif; padding: 10px; background-color: #f5f5f5; color: #333; }
+        .metric-card { margin-bottom: 10px; padding: 10px; border-radius: 4px; background-color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .metric-value { font-size: 1.5em; font-weight: bold; }
+        .log-entry { font-size: 0.85em; margin-bottom: 5px; padding: 3px 0; border-bottom: 1px dotted #eee; }
+        .log-type-add { color: green; }
+        .log-type-remove { color: red; }
+    </style>
+</head>
+<body>
+    <h1>DomPulse Analysis</h1>
+    <div id="metrics-container">
+        <div class="metric-card">
+            Node Count: <span id="node-count" class="metric-value">...</span>
+        </div>
+        <div class="metric-card">
+            Max Depth: <span id="max-depth" class="metric-value">...</span>
+        </div>
+    </div>
+
+    <h2>Mutation Log (Last 50)</h2>
+    <div id="mutation-log">
+        <p>Awaiting mutations...</p>
+    </div>
+
+    <script src="panel.js"></script>
+</body>
+</html>
