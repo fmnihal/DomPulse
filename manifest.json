@@ -1,0 +1,24 @@
+{
+    "manifest_version": 3,
+    "name": "DomPulse: DOM Health Monitor",
+    "version": "1.0",
+    "description": "Analyzes real-time DOM complexity and detects dynamic mutations.",
+    "icons": {
+        "16": "icons/16.png",
+        "48": "icons/48.png",
+        "128": "icons/128.png"
+    },
+    "permissions": [
+        "activeTab"
+    ],
+    "background": {
+        "service_worker": "service-worker.js"
+    },
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": ["content-script.js"]
+        }
+    ],
+    "devtools_page": "devtools/devtools.js"
+}
