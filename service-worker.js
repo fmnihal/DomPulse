@@ -3,63 +3,78 @@
 let devtoolsPort = null;
 let latestMetrics = {};
 let mutationLog = [];
+const connections = {}; // New object to manage connections by tab ID
 
 // --- 1. HANDLE DEVTOOLS CONNECTION ---
 
-// This listener handles the connection established by devtools/devtools.js
 chrome.runtime.onConnect.addListener(port => {
     if (port.name !== "dompulse-devtools") return;
     
-    devtoolsPort = port;
-    console.log("DomPulse DevTools connected.");
+    // Listener for the initial handshake message from the panel (panel.js)
+    port.onMessage.addListener(message => {
+        if (message.action === 'INIT' && message.tabId) {
+            // Store the port reference using the tab ID
+            connections[message.tabId] = port;
+            devtoolsPort = port; // Keep the global reference too
+            
+            console.log(`DomPulse DevTools connected for tab: ${message.tabId}.`);
 
-    // Send any stored data immediately to the newly opened panel
-    devtoolsPort.postMessage({
-        action: "INITIAL_DATA",
-        metrics: latestMetrics,
-        log: mutationLog
-    });
-
-    // Listener for messages coming *from* the DevTools Panel (e.g., requesting a refresh)
-    devtoolsPort.onMessage.addListener(msg => {
-        if (msg.action === "REFRESH_DOM") {
+            // Send stored data immediately to the newly opened panel
+            port.postMessage({
+                action: "INITIAL_DATA",
+                metrics: latestMetrics,
+                log: mutationLog
+            });
+        }
+        
+        // Listener for other messages (like REFRES_DOM)
+        if (message.action === "REFRESH_DOM") {
             // Forward the refresh request to the content script of the active tab
-            chrome.tabs.sendMessage(msg.tabId, { action: "REQUEST_METRICS" });
+            chrome.tabs.sendMessage(message.tabId, { action: "REQUEST_METRICS" });
         }
     });
 
-    // Handle disconnection (e.g., when the user closes DevTools)
-    port.onDisconnect.addListener(() => {
-        devtoolsPort = null;
-        console.log("DomPulse DevTools disconnected.");
+    // Handle disconnection (CRITICAL for cleanup and worker sleep)
+    port.onDisconnect.addListener(disconnectedPort => {
+        // Find and remove the disconnected port from our connections list
+        for (const tabId in connections) {
+            if (connections[tabId] === disconnectedPort) {
+                delete connections[tabId];
+                console.log(`DomPulse DevTools disconnected for tab: ${tabId}.`);
+                break;
+            }
+        }
+        if (devtoolsPort === disconnectedPort) {
+            devtoolsPort = null;
+        }
     });
 });
 
 
 // --- 2. HANDLE CONTENT SCRIPT MESSAGES ---
 
-// This listener handles messages coming *from* the Content Script (content-script.js)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    // Requires an active tab ID to send a reply back, but we don't need one here for DevTools piping.
-    
+    // Note: Use sender.tab.id to determine which tab the message came from
+    const tabId = sender.tab ? sender.tab.id : null;
+    const port = tabId ? connections[tabId] : devtoolsPort; // Use the specific port or the global one
+
     if (request.action === "UPDATE_METRICS") {
         latestMetrics = request.data;
         
-        if (devtoolsPort) {
+        if (port) { // Use the specific port if available
             // Forward the live update to the DevTools panel
-            devtoolsPort.postMessage({
+            port.postMessage({
                 action: "METRICS_UPDATE",
                 metrics: latestMetrics
             });
         }
     } else if (request.action === "LOG_MUTATIONS") {
-        // Add new mutations to the log (keep log size reasonable, e.g., last 50)
         mutationLog = mutationLog.concat(request.data).slice(-50);
-        latestMetrics = request.data[request.data.length - 1].metrics; // Update metrics from the last mutation
+        latestMetrics = request.data[request.data.length - 1].metrics; 
         
-        if (devtoolsPort) {
+        if (port) { // Use the specific port if available
             // Forward the mutation log update to the DevTools panel
-            devtoolsPort.postMessage({
+            port.postMessage({
                 action: "LOG_UPDATE",
                 log: request.data
             });

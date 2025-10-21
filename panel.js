@@ -1,4 +1,4 @@
-// devtools/panel.js
+// panel.js (Now in the root folder)
 
 const nodeCountEl = document.getElementById('node-count');
 const maxDepthEl = document.getElementById('max-depth');
@@ -9,21 +9,24 @@ const backgroundPageConnection = chrome.runtime.connect({
     name: "dompulse-devtools"
 });
 
-// --- 1. HELPER FUNCTIONS ---
+// --- CRITICAL HANDSHAKE ---
+// Send the INIT message immediately to notify the Service Worker 
+// which tab this DevTools window is inspecting, ensuring the worker stays active.
+backgroundPageConnection.postMessage({
+    action: 'INIT',
+    tabId: chrome.devtools.inspectedWindow.tabId
+});
+// -------------------------
 
-/**
- * Updates the metrics displayed in the header cards.
- * @param {object} metrics - The latest DOM metrics.
- */
+
+// --- 1. HELPER FUNCTIONS ---
+// ... (Your updateMetricsDisplay and updateLogDisplay functions remain unchanged)
+
 function updateMetricsDisplay(metrics) {
     nodeCountEl.textContent = metrics.nodeCount.toLocaleString();
     maxDepthEl.textContent = metrics.maxDepth;
 }
 
-/**
- * Adds new mutation entries to the log display.
- * @param {Array<object>} logEntries - An array of new mutation objects.
- */
 function updateLogDisplay(logEntries) {
     if (logContainer.firstElementChild && logContainer.firstElementChild.tagName === 'P') {
         logContainer.innerHTML = ''; // Clear the initial "Awaiting..." message
